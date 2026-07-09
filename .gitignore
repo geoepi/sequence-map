@@ -51,6 +51,8 @@ secrets.yaml
 # local data
 /local
 
+/outputs
+
 # renv
 renv/library/
 renv/python/

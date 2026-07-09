@@ -33,5 +33,8 @@ test_that("tutorial script exists and references the expected workflow steps", {
     expect_true(grepl(pattern, script_text))
   }
 
+  expect_true(grepl("alignment <- read_alignment\\(fasta_path\\)", script_text))
+  expect_false(grepl("alignment_matrix <- read_alignment", script_text))
+  expect_true(grepl("materialize_repository_metadata", script_text))
   expect_false(any(grepl("^source\\(", script_lines)))
 })

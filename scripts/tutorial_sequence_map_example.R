@@ -25,10 +25,10 @@ output_dir <- file.path(repo_root, "outputs", "tutorial-sequence-map")
 sequence_id_col <- "sequence_id"
 lon_col <- "longitude"
 lat_col <- "latitude"
-location_col <- NULL
+location_col <- "location"
 group_col <- NULL
 crs_input <- 4326
-crs_projected <- 5070
+crs_projected <- 8859
 grid_resolution <- 10000
 n_pca <- 20
 n_axes_model <- 3
@@ -74,8 +74,45 @@ materialize_rda_example <- function(path, object_class = c("data.frame", "sf")) 
   tmp_path
 }
 
+materialize_repository_metadata <- function(metadata_rda, boundary_rda) {
+  metadata_env <- new.env(parent = emptyenv())
+  boundary_env <- new.env(parent = emptyenv())
+  load(metadata_rda, envir = metadata_env)
+  load(boundary_rda, envir = boundary_env)
+
+  if (!exists("seq_meta_reg", envir = metadata_env, inherits = FALSE)) {
+    stop("Repository metadata example must contain `seq_meta_reg`.")
+  }
+  if (!exists("vn_provinces", envir = boundary_env, inherits = FALSE)) {
+    stop("Repository boundary example must contain `vn_provinces`.")
+  }
+
+  metadata <- get("seq_meta_reg", envir = metadata_env)
+  provinces <- get("vn_provinces", envir = boundary_env)
+  province_points <- sf::st_transform(
+    sf::st_point_on_surface(sf::st_geometry(sf::st_transform(provinces, 3857))),
+    4326
+  )
+  coordinates <- sf::st_coordinates(province_points)
+  location_coordinates <- data.frame(
+    location = provinces$prov_eng,
+    longitude = coordinates[, "X"],
+    latitude = coordinates[, "Y"],
+    stringsAsFactors = FALSE
+  )
+
+  match_index <- match(metadata$location, location_coordinates$location)
+  metadata$longitude <- location_coordinates$longitude[match_index]
+  metadata$latitude <- location_coordinates$latitude[match_index]
+  names(metadata)[names(metadata) == "accession"] <- "sequence_id"
+
+  tmp_path <- tempfile(fileext = ".csv")
+  utils::write.csv(metadata, tmp_path, row.names = FALSE)
+  tmp_path
+}
+
 if (tolower(tools::file_ext(metadata_path)) == "rda") {
-  metadata_path <- materialize_rda_example(metadata_path, object_class = "data.frame")
+  metadata_path <- materialize_repository_metadata(metadata_path, boundary_path)
 }
 if (tolower(tools::file_ext(boundary_path)) == "rda") {
   boundary_path <- materialize_rda_example(boundary_path, object_class = "sf")
@@ -84,12 +121,17 @@ if (tolower(tools::file_ext(boundary_path)) == "rda") {
 # ---- Step 1: Read inputs ----
 
 # Read the alignment, metadata, and boundary into memory.
-alignment_matrix <- read_alignment(fasta_path)
+alignment <- read_alignment(fasta_path)
 metadata <- read_metadata(metadata_path)
 boundary <- read_boundary(boundary_path)
 
-#alignment_matrix <- as.matrix(ape::as.DNAbin(alignment))
-cat("Alignment dimensions:", nrow(alignment_matrix), "sequences x", ncol(alignment_matrix), "sites\n")
+alignment_dnabin <- alignment
+character_alignment <- ape::as.character.DNAbin(alignment_dnabin)
+if (is.list(character_alignment)) {
+  character_alignment <- do.call(rbind, character_alignment)
+}
+alignment_dimensions <- dim(character_alignment)
+cat("Alignment dimensions:", alignment_dimensions[1], "sequences x", alignment_dimensions[2], "sites\n")
 cat("Metadata dimensions:", nrow(metadata), "rows x", ncol(metadata), "columns\n")
 cat("Boundary CRS:", sf::st_crs(boundary)$input, "\n")
 print(sf::st_bbox(boundary))
@@ -110,7 +152,6 @@ message("Input validation completed successfully.")
 # ---- Step 3: Convert alignment to variant matrix ----
 
 # Encode canonical sequence variation for ordination.
-alignment_dnabin <- ape::as.DNAbin(alignment)
 variant_result <- alignment_to_variant_matrix(
   alignment = alignment_dnabin,
   drop_invariant = drop_invariant
