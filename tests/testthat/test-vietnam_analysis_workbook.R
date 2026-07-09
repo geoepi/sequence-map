@@ -15,6 +15,7 @@ test_that("the Vietnam analysis workbook is configured for safe local runs", {
   expect_true(grepl("write_axis_geotiffs(", workbook, fixed = TRUE))
   expect_true(grepl("aggregate_axis_rasters_to_polygons(", workbook, fixed = TRUE))
   expect_true(grepl("calculate_polygon_axis_metrics(", workbook, fixed = TRUE))
+  expect_true(grepl("summarize_workflow_status(", workbook, fixed = TRUE))
   expect_false(grepl("vp1_A_trimmed.fasta", workbook, fixed = TRUE))
   expect_true(grepl("not direct nucleotide diversity", workbook, fixed = TRUE))
 })

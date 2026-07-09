@@ -238,6 +238,14 @@ run_sequence_map_workflow <- function(
   )
   workflow_result$files_written <- files_written
 
+  workflow_result$workflow_status <- summarize_workflow_status(workflow_result)
+  status_files <- write_workflow_status(
+    workflow_status = workflow_result$workflow_status,
+    output_dir = realized_output_dir
+  )
+  workflow_result$files_written <- c(workflow_result$files_written, status_files)
+  saveRDS(workflow_result, file.path(realized_output_dir, "workflow_result.rds"))
+
   workflow_result
 }
 

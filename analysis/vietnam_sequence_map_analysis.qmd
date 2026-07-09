@@ -39,7 +39,7 @@ library(sf)
 
 repo_root <- here::here()
 
-run_models <- TRUE
+run_models <- FALSE
 overwrite_existing <- TRUE
 rebuild_reporting_outputs <- TRUE
 n_pca <- 20
@@ -316,6 +316,64 @@ cross_alignment_summary <- bind_rows(lapply(
   function(index) load_workflow_summary(alignment_manifest[index, , drop = FALSE])
 ))
 cross_alignment_summary
+```
+
+## Workflow audit status
+
+```{r}
+load_workflow_audit <- function(entry) {
+  if (!file.exists(entry$workflow_result_path)) {
+    return(NULL)
+  }
+  workflow_result <- readRDS(entry$workflow_result_path)
+  audit <- workflow_result$workflow_status
+  if (is.null(audit)) {
+    audit <- summarize_workflow_status(workflow_result)
+  }
+  audit
+}
+
+workflow_audits <- lapply(
+  seq_len(nrow(alignment_manifest)),
+  function(index) load_workflow_audit(alignment_manifest[index, , drop = FALSE])
+)
+names(workflow_audits) <- alignment_manifest$alignment_name
+
+for (alignment_name in names(workflow_audits)) {
+  audit <- workflow_audits[[alignment_name]]
+  if (is.null(audit)) {
+    next
+  }
+  cat("### ", alignment_name, "\n\n", sep = "")
+  print(
+    audit$workflow_status %>%
+      select(
+      output_dir,
+      n_sequences,
+      n_retained_sites,
+      n_sampled_locations,
+      n_prediction_grid_cells,
+      dapc_status,
+      n_axis_models_successful,
+      n_axis_models_failed,
+      n_axis_predictions_successful,
+      n_axis_predictions_failed,
+      raster_status,
+        polygon_status
+      )
+  )
+  print(
+    audit$axis_model_status %>%
+      select(response_col, status, n_observations, n_mesh_vertices, waic, dic, error_message) %>%
+      slice_head(n = 10)
+  )
+  print(
+    audit$axis_prediction_status %>%
+      select(response_col, status, n_prediction_cells, error_message) %>%
+      slice_head(n = 10)
+  )
+  print(audit$error_log %>% slice_head(n = 10))
+}
 ```
 
 ## Province metric comparison

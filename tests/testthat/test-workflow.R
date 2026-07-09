@@ -70,6 +70,7 @@ test_that("workflow runs PCA-first and returns expected outputs", {
   expect_true(dir.exists(result$output_dir))
   expect_true(is.null(result$dapc))
   expect_true("PC1_mean_pred" %in% names(result$axis_surfaces$combined_surface))
+  expect_true(is.list(result$workflow_status))
 
   required_files <- c(
     "alignment_site_summary.csv",
@@ -80,6 +81,11 @@ test_that("workflow runs PCA-first and returns expected outputs", {
     "location_diversity.csv",
     "axis_model_summaries.csv",
     "prediction_axis_surfaces.csv",
+    "workflow_status.csv",
+    "dapc_status.csv",
+    "axis_model_status.csv",
+    "axis_prediction_status.csv",
+    "workflow_error_log.csv",
     "workflow_result.rds",
     "axis_models.rds",
     "axis_surfaces.rds"

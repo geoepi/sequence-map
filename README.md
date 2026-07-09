@@ -1,13 +1,11 @@
-<p align="center">
-  <img src="images/sequence-map-sticker.svg" width="220" alt="sequence-map hex sticker">
-</p>
-
-# sequencemap
+# sequencemap <img src="images/seqmap_sticker.png" align="right" height="300" />
 
 `sequencemap` is the R package used by the `sequence-map` repository.
 It converts aligned viral sequences and sampling coordinates into PCA-first,
 location-level summaries and optional spatial predictions of ordination-axis
 scores across geographic space.
+
+<br clear="right" /> 
 
 ## What sequence-map does
 
