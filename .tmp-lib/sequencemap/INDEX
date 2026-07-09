@@ -1,5 +1,9 @@
+aggregate_axis_rasters_to_polygons
+                        Aggregate axis rasters to polygons
 alignment_to_variant_matrix
                         Convert a DNAbin alignment to a variant matrix
+axis_surface_to_raster
+                        Convert predicted axis surfaces to a raster
 fit_axis_model          Fit a Gaussian SPDE model for one ordination
                         axis
 fit_axis_models         Fit Gaussian SPDE models for multiple
@@ -30,3 +34,4 @@ validate_alignment_metadata_match
                         matching
 validate_sequence_metadata
                         Validate sequence metadata columns
+write_axis_geotiffs     Write predicted axis surfaces as GeoTIFF files

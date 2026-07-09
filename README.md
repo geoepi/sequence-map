@@ -19,7 +19,8 @@ SPDE/INLA axis models.
 `read_alignment()` and input validation -> `alignment_to_variant_matrix()` ->
 `run_sequence_pca()` -> `summarize_location_scores()` ->
 `prepare_spatial_points()` -> `make_prediction_grid()` -> optional
-`make_inla_mesh()`, `fit_axis_models()`, and `predict_axis_surfaces()`.
+`make_inla_mesh()`, `fit_axis_models()`, and `predict_axis_surfaces()` ->
+`axis_surface_to_raster()` -> `aggregate_axis_rasters_to_polygons()`.
 
 DAPC is opt-in because it requires a biologically justified grouping decision
 or explicitly exploratory inferred groups.
@@ -37,7 +38,9 @@ PCA axis surfaces are predicted spatial patterns in genetic-position scores,
 not direct estimates of nucleotide diversity. Location-level dispersion is an
 ordination-space diversity summary and needs multiple sequences per location.
 Predictions in unsampled areas are model-based interpolations rather than
-observed genetic data.
+observed genetic data. GeoTIFFs and province summaries are reporting products
+of the continuous surface, not separate province-level models or nucleotide
+diversity estimates.
 
 ## INLA note
 

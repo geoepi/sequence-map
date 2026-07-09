@@ -26,6 +26,8 @@ test_that("tutorial script exists and references the expected workflow steps", {
     "make_inla_mesh\\(",
     "fit_axis_models\\(",
     "predict_axis_surfaces\\(",
+    "write_axis_geotiffs\\(",
+    "aggregate_axis_rasters_to_polygons\\(",
     "run_sequence_map_workflow\\("
   )
 

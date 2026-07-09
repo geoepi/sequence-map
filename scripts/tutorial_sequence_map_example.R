@@ -390,6 +390,57 @@ if (!is.na(first_prediction_col)) {
   )
 }
 
+# ---- Step 13A: Raster outputs and polygon summaries ----
+
+# Raster and polygon summaries are reporting products derived from the
+# continuous SPDE surface; they are not separate province-level models.
+raster_outputs <- write_axis_geotiffs(
+  surface = axis_surfaces,
+  output_dir = file.path(output_dir, "rasters")
+)
+province_summaries <- aggregate_axis_rasters_to_polygons(
+  raster = raster_outputs$raster,
+  polygons = boundary,
+  polygon_id_col = "prov_eng"
+)
+
+province_display_cols <- c(
+  "polygon_id",
+  "n_grid_cells",
+  intersect(
+    c(
+      "PC1_mean_pred_mean", "PC1_mean_pred_sd",
+      "PC2_mean_pred_mean", "PC2_mean_pred_sd",
+      "PC3_mean_pred_mean", "PC3_mean_pred_sd",
+      "PC1_mean_sd_mean", "PC2_mean_sd_mean", "PC3_mean_sd_mean"
+    ),
+    names(province_summaries)
+  )
+)
+print(province_summaries[, province_display_cols, drop = FALSE])
+utils::write.csv(
+  province_summaries,
+  file.path(output_dir, "province_axis_surface_summaries.csv"),
+  row.names = FALSE
+)
+
+if ("PC1_mean_pred_mean" %in% names(province_summaries)) {
+  province_map <- dplyr::left_join(
+    boundary,
+    province_summaries,
+    by = c("prov_eng" = "polygon_id")
+  )
+  ggplot2::ggsave(
+    filename = file.path(output_dir, "province_pc1_mean.png"),
+    plot = ggplot2::ggplot(province_map) +
+      ggplot2::geom_sf(ggplot2::aes(fill = PC1_mean_pred_mean)) +
+      ggplot2::theme_minimal(),
+    width = 6,
+    height = 5,
+    dpi = 150
+  )
+}
+
 # ---- Step 14: Compare to full wrapper ----
 
 # The full pipeline can also be run with a single wrapper call:

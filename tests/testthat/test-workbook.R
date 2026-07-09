@@ -33,7 +33,10 @@ test_that("the tutorial workbook contains the sequence-map workflow", {
     "make_prediction_grid(",
     "make_inla_mesh(",
     "fit_axis_models(",
-    "predict_axis_surfaces("
+    "predict_axis_surfaces(",
+    "axis_surface_to_raster(",
+    "write_axis_geotiffs(",
+    "aggregate_axis_rasters_to_polygons("
   )
 
   for (function_name in expected_functions) {
