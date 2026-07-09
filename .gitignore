@@ -52,10 +52,17 @@ secrets.yaml
 /local
 
 /outputs
+/outputs/
+/outputs/**
+
+/.tmp-lib/
+/.tmp-lib
 
 /analysis/*_files/
 /analysis/*.html
 /analysis/*.pdf
+/analysis/*_cache/
+/analysis/.quarto/
 
 # renv
 renv/library/

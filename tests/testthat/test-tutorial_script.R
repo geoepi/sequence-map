@@ -28,6 +28,7 @@ test_that("tutorial script exists and references the expected workflow steps", {
     "predict_axis_surfaces\\(",
     "write_axis_geotiffs\\(",
     "aggregate_axis_rasters_to_polygons\\(",
+    "calculate_polygon_axis_metrics\\(",
     "run_sequence_map_workflow\\("
   )
 

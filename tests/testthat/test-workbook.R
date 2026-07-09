@@ -36,7 +36,8 @@ test_that("the tutorial workbook contains the sequence-map workflow", {
     "predict_axis_surfaces(",
     "axis_surface_to_raster(",
     "write_axis_geotiffs(",
-    "aggregate_axis_rasters_to_polygons("
+    "aggregate_axis_rasters_to_polygons(",
+    "calculate_polygon_axis_metrics("
   )
 
   for (function_name in expected_functions) {

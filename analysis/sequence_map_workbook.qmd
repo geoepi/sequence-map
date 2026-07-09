@@ -445,20 +445,35 @@ province_summaries <- aggregate_axis_rasters_to_polygons(
   polygon_id_col = "prov_eng"
 )
 
-province_display_cols <- c(
+```
+
+These derived metrics summarize modeled ordination-space surfaces within
+polygons. They are reporting metrics, not direct nucleotide diversity, and
+should be interpreted alongside observed within-location dispersion and
+posterior uncertainty.
+
+```{r}
+#| eval: !expr inla_available
+
+polygon_metrics <- calculate_polygon_axis_metrics(province_summaries)
+compact_polygon_cols <- c(
   "polygon_id",
   "n_grid_cells",
   intersect(
     c(
-      "PC1_mean_pred_mean", "PC1_mean_pred_sd",
-      "PC2_mean_pred_mean", "PC2_mean_pred_sd",
-      "PC3_mean_pred_mean", "PC3_mean_pred_sd",
-      "PC1_mean_sd_mean", "PC2_mean_sd_mean", "PC3_mean_sd_mean"
+      "PC1_mean_pred_mean",
+      "PC2_mean_pred_mean",
+      "PC3_mean_pred_mean",
+      "axis_centroid_distance",
+      "axis_surface_dispersion",
+      "mean_axis_uncertainty"
     ),
-    names(province_summaries)
+    names(polygon_metrics)
   )
 )
-province_summaries %>% select(all_of(province_display_cols))
+polygon_metrics %>%
+  select(all_of(compact_polygon_cols)) %>%
+  slice_head(n = 10)
 ```
 
 ```{r}
@@ -480,6 +495,32 @@ if ("PC1_mean_pred_mean" %in% names(province_summaries)) {
 ```{r}
 #| eval: !expr inla_available
 
+for (metric_name in c(
+  "axis_centroid_distance",
+  "axis_surface_dispersion",
+  "mean_axis_uncertainty"
+)) {
+  if (!metric_name %in% names(polygon_metrics)) {
+    next
+  }
+  metric_map <- left_join(
+    boundary,
+    polygon_metrics %>% select(polygon_id, all_of(metric_name)),
+    by = c("prov_eng" = "polygon_id")
+  )
+  metric_map$plot_value <- metric_map[[metric_name]]
+  print(
+    ggplot(metric_map) +
+      geom_sf(aes(fill = plot_value)) +
+      labs(fill = metric_name, title = paste("Province", metric_name)) +
+      theme_minimal()
+  )
+}
+```
+
+```{r}
+#| eval: !expr inla_available
+
 if (write_outputs) {
   raster_outputs <- write_axis_geotiffs(
     axis_surfaces,
@@ -488,6 +529,11 @@ if (write_outputs) {
   utils::write.csv(
     province_summaries,
     file.path(output_dir, "province_axis_surface_summaries.csv"),
+    row.names = FALSE
+  )
+  utils::write.csv(
+    polygon_metrics,
+    file.path(output_dir, "province_axis_surface_metrics.csv"),
     row.names = FALSE
   )
 }

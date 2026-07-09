@@ -3,6 +3,7 @@
 export(aggregate_axis_rasters_to_polygons)
 export(alignment_to_variant_matrix)
 export(axis_surface_to_raster)
+export(calculate_polygon_axis_metrics)
 export(fit_axis_model)
 export(fit_axis_models)
 export(hello_sequencemap)

@@ -1,0 +1,455 @@
+---
+title: "Vietnam sequence-map analysis"
+subtitle: "Spatial genetic-variation surfaces across four sequence alignments"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+    code-fold: true
+    code-tools: true
+execute:
+  warning: true
+  message: true
+editor_options: 
+  chunk_output_type: console
+---
+
+## Analysis purpose
+
+This is the formal Vietnam analysis workbook, not the package tutorial. It
+applies the PCA-first sequence-map workflow independently to every FASTA
+alignment discovered in data/fasta. The current analysis expects four
+alignments, but discovery is dynamic and does not assume an exact count.
+
+Each alignment has its own ordination basis. Province-level values are derived reporting summaries of continuous SPDE surfaces, not direct nucleotide diversity and not separate province-level models.
+
+## Settings
+
+```{r}
+#| label: setup
+#| include: false
+
+library(here)
+library(sequencemap)
+library(dplyr)
+library(ggplot2)
+library(sf)
+
+repo_root <- here::here()
+
+run_models <- TRUE
+overwrite_existing <- TRUE
+rebuild_reporting_outputs <- TRUE
+n_pca <- 20
+n_axes_model <- 3
+grid_resolution <- 10000
+crs_input <- 4326
+crs_projected <- "+proj=aea +lat_1=20 +lat_2=40 +lat_0=30 +lon_0=105 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
+output_root <- here::here("outputs", "vietnam-analysis")
+write_outputs <- TRUE
+
+metadata_rda <- here::here("data", "metadata", "prep-for-seqs.Rda")
+boundary_rda <- here::here("data", "spatial", "vn-spat.Rda")
+
+required_reporting_functions <- c(
+  "write_axis_geotiffs",
+  "aggregate_axis_rasters_to_polygons",
+  "calculate_polygon_axis_metrics"
+)
+missing_reporting_functions <- required_reporting_functions[
+  !vapply(
+    required_reporting_functions,
+    exists,
+    logical(1),
+    where = asNamespace("sequencemap"),
+    inherits = FALSE
+  )
+]
+if (length(missing_reporting_functions) > 0L) {
+  message(
+    "The installed sequencemap package is missing: ",
+    paste(missing_reporting_functions, collapse = ", "),
+    ". Reinstall the current repository before running or rebuilding reporting outputs."
+  )
+}
+
+materialize_vietnam_examples <- function(metadata_rda, boundary_rda) {
+  metadata_env <- new.env(parent = emptyenv())
+  boundary_env <- new.env(parent = emptyenv())
+  load(metadata_rda, envir = metadata_env)
+  load(boundary_rda, envir = boundary_env)
+
+  metadata <- get("seq_meta_reg", envir = metadata_env)
+  provinces <- get("vn_provinces", envir = boundary_env)
+  province_points <- sf::st_transform(
+    sf::st_point_on_surface(sf::st_geometry(sf::st_transform(provinces, 3857))),
+    4326
+  )
+  coordinates <- sf::st_coordinates(province_points)
+  location_coordinates <- data.frame(
+    location = provinces$prov_eng,
+    longitude = coordinates[, "X"],
+    latitude = coordinates[, "Y"],
+    stringsAsFactors = FALSE
+  )
+  match_index <- match(metadata$location, location_coordinates$location)
+  metadata$longitude <- location_coordinates$longitude[match_index]
+  metadata$latitude <- location_coordinates$latitude[match_index]
+  names(metadata)[names(metadata) == "accession"] <- "sequence_id"
+
+  metadata_path <- tempfile(fileext = ".csv")
+  boundary_path <- tempfile(fileext = ".gpkg")
+  utils::write.csv(metadata, metadata_path, row.names = FALSE)
+  sf::st_write(provinces, boundary_path, quiet = TRUE, delete_dsn = TRUE)
+  list(
+    metadata = metadata,
+    provinces = provinces,
+    metadata_path = metadata_path,
+    boundary_path = boundary_path
+  )
+}
+
+example_inputs <- materialize_vietnam_examples(metadata_rda, boundary_rda)
+```
+
+Set run_models to TRUE only when ready to fit all alignment-specific INLA
+models locally. A full run can take substantial time. Set
+rebuild_reporting_outputs to TRUE to add rasters and polygon metrics to
+existing workflow results without refitting models.
+
+## Input discovery
+
+```{r}
+fasta_dir <- here::here("data", "fasta")
+fasta_files <- list.files(
+  fasta_dir,
+  pattern = "\\.fasta$|\\.fa$|\\.fas$",
+  full.names = TRUE,
+  ignore.case = TRUE
+)
+alignment_names <- tools::file_path_sans_ext(basename(fasta_files))
+
+alignment_manifest <- data.frame(
+  alignment_name = alignment_names,
+  fasta_path = fasta_files,
+  output_dir = file.path(output_root, alignment_names),
+  workflow_result_path = file.path(output_root, alignment_names, "workflow_result.rds"),
+  prediction_surface_path = file.path(output_root, alignment_names, "prediction_axis_surfaces.csv"),
+  province_metrics_path = file.path(output_root, alignment_names, "province_axis_derived_metrics.csv"),
+  stringsAsFactors = FALSE
+)
+
+alignment_manifest %>%
+  select(alignment_name, fasta_path, output_dir) %>%
+  slice_head(n = 10)
+```
+
+## Metadata and boundary preparation
+
+```{r}
+metadata <- example_inputs$metadata
+boundary <- example_inputs$provinces
+
+data.frame(
+  metadata_rows = nrow(metadata),
+  n_provinces = nrow(boundary),
+  boundary_crs = sf::st_crs(boundary)$input,
+  n_fasta_files = nrow(alignment_manifest)
+)
+alignment_manifest %>% select(alignment_name, fasta_path)
+```
+
+## Run analysis loop
+
+When models are disabled, this section only inventories expected outputs. When
+enabled, it runs each FASTA alignment separately using PCA-first defaults and
+then creates derived raster and province reporting products.
+
+```{r}
+write_alignment_reporting_outputs <- function(workflow_result, output_dir, boundary) {
+  if (length(missing_reporting_functions) > 0L) {
+    stop(
+      "Reinstall the current sequencemap repository before creating reporting outputs.",
+      call. = FALSE
+    )
+  }
+  if (is.null(workflow_result$axis_surfaces$combined_surface)) {
+    message("No combined axis surface is available for ", output_dir)
+    return(invisible(NULL))
+  }
+
+  raster_outputs <- write_axis_geotiffs(
+    workflow_result$axis_surfaces,
+    output_dir = file.path(output_dir, "rasters")
+  )
+  province_summaries <- aggregate_axis_rasters_to_polygons(
+    raster = raster_outputs$raster,
+    polygons = boundary,
+    polygon_id_col = "prov_eng"
+  )
+  polygon_metrics <- calculate_polygon_axis_metrics(province_summaries)
+  utils::write.csv(
+    province_summaries,
+    file.path(output_dir, "province_axis_surface_summaries.csv"),
+    row.names = FALSE
+  )
+  utils::write.csv(
+    polygon_metrics,
+    file.path(output_dir, "province_axis_derived_metrics.csv"),
+    row.names = FALSE
+  )
+  invisible(list(
+    raster_outputs = raster_outputs,
+    province_summaries = province_summaries,
+    polygon_metrics = polygon_metrics
+  ))
+}
+
+run_status <- alignment_manifest %>%
+  transmute(
+    alignment_name,
+    output_dir,
+    status = if_else(dir.exists(output_dir), "existing output directory", "not run")
+  )
+
+if (run_models) {
+  if (length(missing_reporting_functions) > 0L) {
+    stop(
+      "The installed sequencemap package is outdated. Reinstall this repository before setting run_models = TRUE.",
+      call. = FALSE
+    )
+  }
+  if (!requireNamespace("INLA", quietly = TRUE)) {
+    stop("INLA is required when run_models = TRUE.", call. = FALSE)
+  }
+
+  for (index in seq_len(nrow(alignment_manifest))) {
+    entry <- alignment_manifest[index, , drop = FALSE]
+    if (dir.exists(entry$output_dir) && !overwrite_existing) {
+      message("Skipping existing output directory for ", entry$alignment_name)
+      run_status$status[index] <- "skipped existing output"
+      next
+    }
+
+    workflow_result <- run_sequence_map_workflow(
+      fasta_path = entry$fasta_path,
+      metadata_path = example_inputs$metadata_path,
+      boundary_path = example_inputs$boundary_path,
+      output_dir = entry$output_dir,
+      sequence_id_col = "sequence_id",
+      lon_col = "longitude",
+      lat_col = "latitude",
+      location_col = "location",
+      crs_input = crs_input,
+      crs_projected = crs_projected,
+      grid_resolution = grid_resolution,
+      n_pca = n_pca,
+      n_axes_model = n_axes_model,
+      run_dapc = FALSE,
+      overwrite = overwrite_existing
+    )
+
+    realized_output_dir <- workflow_result$output_dir
+    write_alignment_reporting_outputs(workflow_result, realized_output_dir, boundary)
+    saveRDS(workflow_result, file.path(realized_output_dir, "workflow_result.rds"))
+    run_status$status[index] <- "completed"
+  }
+} else if (rebuild_reporting_outputs) {
+  for (index in seq_len(nrow(alignment_manifest))) {
+    entry <- alignment_manifest[index, , drop = FALSE]
+    if (!file.exists(entry$workflow_result_path)) {
+      run_status$status[index] <- "workflow result not found"
+      next
+    }
+    workflow_result <- readRDS(entry$workflow_result_path)
+    write_alignment_reporting_outputs(workflow_result, entry$output_dir, boundary)
+    run_status$status[index] <- "reporting outputs rebuilt"
+  }
+} else {
+  message(
+    "Models are disabled. Set run_models <- TRUE to run the full analysis, ",
+    "or rebuild_reporting_outputs <- TRUE to post-process existing results."
+  )
+}
+
+run_status
+```
+
+## Cross-alignment summary
+
+```{r}
+load_workflow_summary <- function(entry) {
+  if (!file.exists(entry$workflow_result_path)) {
+    return(data.frame(
+      alignment_name = entry$alignment_name,
+      n_sequences = NA_integer_,
+      n_sites = NA_integer_,
+      n_retained_sites = NA_integer_,
+      n_sampled_locations = NA_integer_,
+      n_prediction_grid_cells = NA_integer_,
+      successful_axes = NA_character_,
+      failed_axes = NA_character_,
+      output_dir = entry$output_dir,
+      stringsAsFactors = FALSE
+    ))
+  }
+
+  result <- readRDS(entry$workflow_result_path)
+  data.frame(
+    alignment_name = entry$alignment_name,
+    n_sequences = result$alignment_qc$n_sequences,
+    n_sites = result$alignment_qc$n_sites,
+    n_retained_sites = result$alignment_qc$n_retained_sites,
+    n_sampled_locations = nrow(result$location_scores),
+    n_prediction_grid_cells = nrow(result$prediction_grid),
+    successful_axes = paste(result$axis_models$successful_response_cols, collapse = ", "),
+    failed_axes = paste(result$axis_models$failed_response_cols, collapse = ", "),
+    output_dir = result$output_dir,
+    stringsAsFactors = FALSE
+  )
+}
+
+cross_alignment_summary <- bind_rows(lapply(
+  seq_len(nrow(alignment_manifest)),
+  function(index) load_workflow_summary(alignment_manifest[index, , drop = FALSE])
+))
+cross_alignment_summary
+```
+
+## Province metric comparison
+
+```{r}
+combined_province_metrics <- bind_rows(lapply(
+  seq_len(nrow(alignment_manifest)),
+  function(index) {
+    entry <- alignment_manifest[index, , drop = FALSE]
+    if (!file.exists(entry$province_metrics_path)) {
+      return(NULL)
+    }
+    metrics <- utils::read.csv(entry$province_metrics_path, stringsAsFactors = FALSE)
+    metrics$alignment_name <- entry$alignment_name
+    metrics
+  }
+))
+
+if (nrow(combined_province_metrics) == 0L) {
+  message("No province metric files were found yet.")
+} else {
+  if (write_outputs) {
+    dir.create(output_root, recursive = TRUE, showWarnings = FALSE)
+    utils::write.csv(
+      combined_province_metrics,
+      file.path(output_root, "vietnam_combined_province_axis_metrics.csv"),
+      row.names = FALSE
+    )
+  }
+
+  show_top_provinces <- function(metric) {
+    combined_province_metrics %>%
+      filter(!is.na(.data[[metric]])) %>%
+      group_by(alignment_name) %>%
+      slice_max(.data[[metric]], n = 10, with_ties = FALSE) %>%
+      ungroup() %>%
+      select(alignment_name, polygon_id, n_grid_cells, all_of(metric))
+  }
+
+  show_top_provinces("axis_centroid_distance")
+  show_top_provinces("axis_surface_dispersion")
+  show_top_provinces("mean_axis_uncertainty")
+}
+```
+
+## Maps
+
+```{r}
+plot_alignment_outputs <- function(entry) {
+  surface_path <- file.path(entry$output_dir, "prediction_axis_surfaces.gpkg")
+  metrics_path <- entry$province_metrics_path
+
+  if (file.exists(surface_path)) {
+    surface <- sf::st_read(surface_path, quiet = TRUE)
+    for (column in intersect(
+      c("PC1_mean_pred", "PC2_mean_pred", "PC3_mean_pred"),
+      names(surface)
+    )) {
+      print(
+        ggplot() +
+          geom_sf(data = surface, aes(color = .data[[column]]), size = 0.4) +
+          geom_sf(data = boundary, fill = NA, color = "grey30") +
+          labs(title = paste(entry$alignment_name, column), color = column) +
+          theme_minimal()
+      )
+    }
+  }
+
+  if (file.exists(metrics_path)) {
+    metrics <- utils::read.csv(metrics_path, stringsAsFactors = FALSE)
+    province_map <- left_join(boundary, metrics, by = c("prov_eng" = "polygon_id"))
+    for (metric in intersect(
+      c("axis_centroid_distance", "axis_surface_dispersion", "mean_axis_uncertainty"),
+      names(province_map)
+    )) {
+      province_map$plot_value <- province_map[[metric]]
+      print(
+        ggplot(province_map) +
+          geom_sf(aes(fill = plot_value)) +
+          labs(title = paste(entry$alignment_name, metric), fill = metric) +
+          theme_minimal()
+      )
+    }
+  }
+}
+
+invisible(lapply(
+  seq_len(nrow(alignment_manifest)),
+  function(index) plot_alignment_outputs(alignment_manifest[index, , drop = FALSE])
+))
+```
+
+## Interpretation notes
+
+PC axes are not automatically comparable biologically across alignments unless
+the alignments and PCA basis are shared. PCA signs and directions are arbitrary
+within each alignment. Province summaries are derived reporting summaries, and
+surface heterogeneity is not nucleotide diversity. Interpret observed
+location-level reduced-space dispersion separately from modeled province
+metrics and posterior uncertainty. Cross-alignment comparisons should remain
+cautious until a shared feature basis or common PCA projection is implemented.
+
+## Output inventory
+
+```{r}
+inventory_files <- c(
+  workflow_result = "workflow_result.rds",
+  axis_models = "axis_models.rds",
+  axis_surfaces = "axis_surfaces.rds",
+  prediction_surface = "prediction_axis_surfaces.csv",
+  province_summaries = "province_axis_surface_summaries.csv",
+  province_metrics = "province_axis_derived_metrics.csv",
+  multiband_geotiff = file.path("rasters", "sequence_map_axis_surface_multiband.tif")
+)
+
+output_inventory <- bind_rows(lapply(
+  seq_len(nrow(alignment_manifest)),
+  function(index) {
+    entry <- alignment_manifest[index, , drop = FALSE]
+    data.frame(
+      alignment_name = entry$alignment_name,
+      file_type = names(inventory_files),
+      path = file.path(entry$output_dir, unname(inventory_files)),
+      present = file.exists(file.path(entry$output_dir, unname(inventory_files))),
+      stringsAsFactors = FALSE
+    )
+  }
+))
+output_inventory
+```
+
+## Reproducibility
+
+```{r}
+packageVersion("sequencemap")
+sessionInfo()
+```

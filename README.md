@@ -1,3 +1,10 @@
+<!--
+Add the package sticker at images/sequence-map-sticker.png, then uncomment:
+<p align="center">
+  <img src="images/sequence-map-sticker.png" width="220" alt="sequence-map hex sticker">
+</p>
+-->
+
 # sequencemap
 
 ## What sequence-map does
@@ -40,7 +47,10 @@ ordination-space diversity summary and needs multiple sequences per location.
 Predictions in unsampled areas are model-based interpolations rather than
 observed genetic data. GeoTIFFs and province summaries are reporting products
 of the continuous surface, not separate province-level models or nucleotide
-diversity estimates.
+diversity estimates. `calculate_polygon_axis_metrics()` derives
+`axis_centroid_distance` (predicted genetic-position displacement),
+`axis_surface_dispersion` (within-polygon predicted-axis heterogeneity), and
+`mean_axis_uncertainty` (average posterior uncertainty) from those summaries.
 
 ## INLA note
 

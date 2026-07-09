@@ -424,6 +424,20 @@ utils::write.csv(
   row.names = FALSE
 )
 
+polygon_metrics <- calculate_polygon_axis_metrics(province_summaries)
+print(polygon_metrics[, c(
+  "polygon_id",
+  "n_grid_cells",
+  "axis_centroid_distance",
+  "axis_surface_dispersion",
+  "mean_axis_uncertainty"
+), drop = FALSE])
+utils::write.csv(
+  polygon_metrics,
+  file.path(output_dir, "province_axis_surface_metrics.csv"),
+  row.names = FALSE
+)
+
 if ("PC1_mean_pred_mean" %in% names(province_summaries)) {
   province_map <- dplyr::left_join(
     boundary,
@@ -434,6 +448,32 @@ if ("PC1_mean_pred_mean" %in% names(province_summaries)) {
     filename = file.path(output_dir, "province_pc1_mean.png"),
     plot = ggplot2::ggplot(province_map) +
       ggplot2::geom_sf(ggplot2::aes(fill = PC1_mean_pred_mean)) +
+      ggplot2::theme_minimal(),
+    width = 6,
+    height = 5,
+    dpi = 150
+  )
+}
+
+for (metric_name in c(
+  "axis_centroid_distance",
+  "axis_surface_dispersion",
+  "mean_axis_uncertainty"
+)) {
+  if (!metric_name %in% names(polygon_metrics)) {
+    next
+  }
+  metric_map <- dplyr::left_join(
+    boundary,
+    polygon_metrics[, c("polygon_id", metric_name), drop = FALSE],
+    by = c("prov_eng" = "polygon_id")
+  )
+  metric_map$plot_value <- metric_map[[metric_name]]
+  ggplot2::ggsave(
+    filename = file.path(output_dir, paste0("province_", metric_name, ".png")),
+    plot = ggplot2::ggplot(metric_map) +
+      ggplot2::geom_sf(ggplot2::aes(fill = plot_value)) +
+      ggplot2::labs(fill = metric_name) +
       ggplot2::theme_minimal(),
     width = 6,
     height = 5,
