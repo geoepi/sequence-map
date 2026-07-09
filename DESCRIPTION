@@ -1,0 +1,28 @@
+Package: sequencemap
+Title: Tools for Sequence Mapping and Spatial Analysis
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "First",
+           family = "Last",
+           role = c("aut", "cre"),
+           email = "first.last@example.com")
+Description: Infrastructure for sequence mapping workflows, exploratory
+    phylogenetic analysis, and spatially explicit epidemiologic modeling.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+    adegenet,
+    ape,
+    dplyr,
+    ggplot2,
+    Matrix,
+    methods,
+    sf,
+    terra,
+    tidyr
+Suggests:
+    INLA,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
