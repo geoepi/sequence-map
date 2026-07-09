@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-labelledby="title desc">
+  <title id="title">sequence-map hex sticker</title>
+  <desc id="desc">Hexagon package sticker showing a geographic surface, sampling network, and DNA motif.</desc>
+  <defs>
+    <linearGradient id="border" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#38c4d6"/>
+      <stop offset="1" stop-color="#0e7c90"/>
+    </linearGradient>
+    <linearGradient id="mapgrad" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#f15a3c"/>
+      <stop offset="0.28" stop-color="#f7c85b"/>
+      <stop offset="0.55" stop-color="#9bd48b"/>
+      <stop offset="0.78" stop-color="#39b8c6"/>
+      <stop offset="1" stop-color="#246fb8"/>
+    </linearGradient>
+    <radialGradient id="bg" cx="50%" cy="42%" r="70%">
+      <stop offset="0" stop-color="#173a59"/>
+      <stop offset="1" stop-color="#071e35"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <polygon points="400,35 710,215 710,585 400,765 90,585 90,215" fill="url(#border)" filter="url(#shadow)"/>
+  <polygon points="400,72 678,234 678,566 400,728 122,566 122,234" fill="url(#bg)"/>
+
+  <g opacity="0.18" fill="none" stroke="#78d5e1" stroke-width="3">
+    <path d="M130 365 C210 320 260 390 330 345 S510 285 660 345"/>
+    <path d="M135 440 C240 390 310 445 420 405 S555 350 665 420"/>
+    <path d="M175 610 C265 555 340 620 445 585 S590 535 650 575"/>
+  </g>
+
+  <text x="400" y="172" text-anchor="middle" font-family="Inter, Avenir, Helvetica, Arial, sans-serif" font-size="72" font-weight="700" fill="#f7fbff" letter-spacing="1">sequence-map</text>
+
+  <g transform="translate(0 5)">
+    <path d="M158 375 C178 300 228 270 296 292 C344 237 420 260 454 302 C515 278 604 304 635 366 C683 386 672 465 615 481 C588 545 488 536 452 502 C389 543 312 520 282 476 C218 493 144 456 158 375 Z" fill="url(#mapgrad)" stroke="#f8f5d6" stroke-width="3" opacity="0.96"/>
+    <g opacity="0.22" fill="none" stroke="#fff" stroke-width="5">
+      <path d="M175 378 C245 330 328 360 395 327 C470 292 548 322 625 363"/>
+      <path d="M190 430 C260 390 345 425 420 390 C492 357 565 390 628 424"/>
+      <path d="M230 478 C310 450 380 482 456 453 C520 430 570 455 613 480"/>
+    </g>
+    <g stroke="#f7fbff" stroke-width="4" stroke-linecap="round" opacity="0.78">
+      <line x1="240" y1="360" x2="355" y2="455"/>
+      <line x1="240" y1="360" x2="435" y2="365"/>
+      <line x1="355" y1="455" x2="435" y2="365"/>
+      <line x1="435" y1="365" x2="525" y2="448"/>
+      <line x1="525" y1="448" x2="615" y2="393"/>
+      <line x1="435" y1="365" x2="615" y2="393"/>
+      <line x1="355" y1="455" x2="525" y2="448"/>
+    </g>
+    <g fill="#f7fbff" stroke="#d9ffff" stroke-width="3">
+      <circle cx="240" cy="360" r="13"/>
+      <circle cx="355" cy="455" r="13"/>
+      <circle cx="435" cy="365" r="13"/>
+      <circle cx="525" cy="448" r="13"/>
+      <circle cx="615" cy="393" r="13"/>
+    </g>
+  </g>
+
+  <g transform="translate(196 610)" fill="none" stroke-linecap="round">
+    <path d="M0 0 C55 -55 115 55 170 0 S285 -55 340 0" stroke="#44c7d7" stroke-width="10"/>
+    <path d="M0 70 C55 15 115 125 170 70 S285 15 340 70" stroke="#a6e4bb" stroke-width="10"/>
+    <g stroke-width="6">
+      <line x1="45" y1="20" x2="45" y2="50" stroke="#f15a3c"/>
+      <line x1="78" y1="33" x2="78" y2="65" stroke="#f7c85b"/>
+      <line x1="112" y1="41" x2="112" y2="75" stroke="#f7e47e"/>
+      <line x1="184" y1="34" x2="184" y2="66" stroke="#9bd48b"/>
+      <line x1="218" y1="20" x2="218" y2="50" stroke="#76d2c3"/>
+      <line x1="252" y1="12" x2="252" y2="43" stroke="#39b8c6"/>
+      <line x1="288" y1="20" x2="288" y2="50" stroke="#2b8fc8"/>
+    </g>
+  </g>
+</svg>
