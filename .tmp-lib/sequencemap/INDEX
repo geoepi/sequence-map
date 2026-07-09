@@ -1,0 +1,32 @@
+alignment_to_variant_matrix
+                        Convert a DNAbin alignment to a variant matrix
+fit_axis_model          Fit a Gaussian SPDE model for one ordination
+                        axis
+fit_axis_models         Fit Gaussian SPDE models for multiple
+                        ordination axes
+hello_sequencemap       Return a package greeting
+make_inla_mesh          Create an INLA mesh for sequence mapping
+make_prediction_grid    Create a prediction grid inside a boundary
+predict_axis_surface    Predict an ordination axis surface on a spatial
+                        grid
+predict_axis_surfaces   Predict multiple axis surfaces on a common grid
+prepare_spatial_points
+                        Prepare projected spatial points for sequence
+                        mapping
+read_alignment          Read an alignment from a FASTA file
+read_boundary           Read a spatial boundary
+read_metadata           Read sequence metadata
+run_sequence_dapc       Run DAPC on an encoded sequence matrix
+run_sequence_map_workflow
+                        Run the end-to-end sequence-map workflow
+run_sequence_pca        Run PCA on an encoded sequence matrix
+summarize_location_diversity
+                        Summarize ordination-space diversity by sampled
+                        location
+summarize_location_scores
+                        Summarize ordination scores by sampled location
+validate_alignment_metadata_match
+                        Validate alignment and metadata identifier
+                        matching
+validate_sequence_metadata
+                        Validate sequence metadata columns

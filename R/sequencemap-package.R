@@ -4,13 +4,4 @@
 #' epidemiology workflows.
 #'
 #' @keywords internal
-#' @import adegenet
-#' @import ape
-#' @import dplyr
-#' @import ggplot2
-#' @import Matrix
-#' @import methods
-#' @import sf
-#' @import terra
-#' @import tidyr
 "_PACKAGE"

@@ -84,11 +84,11 @@ if (tolower(tools::file_ext(boundary_path)) == "rda") {
 # ---- Step 1: Read inputs ----
 
 # Read the alignment, metadata, and boundary into memory.
-alignment <- read_alignment(fasta_path)
+alignment_matrix <- read_alignment(fasta_path)
 metadata <- read_metadata(metadata_path)
 boundary <- read_boundary(boundary_path)
 
-alignment_matrix <- as.matrix(ape::as.DNAbin(alignment))
+#alignment_matrix <- as.matrix(ape::as.DNAbin(alignment))
 cat("Alignment dimensions:", nrow(alignment_matrix), "sequences x", ncol(alignment_matrix), "sites\n")
 cat("Metadata dimensions:", nrow(metadata), "rows x", ncol(metadata), "columns\n")
 cat("Boundary CRS:", sf::st_crs(boundary)$input, "\n")
