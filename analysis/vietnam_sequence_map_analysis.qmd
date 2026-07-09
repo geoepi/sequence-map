@@ -18,12 +18,12 @@ editor_options:
 
 ## Analysis purpose
 
-This is the formal Vietnam analysis workbook, not the package tutorial. It
+This is a Vietnam analysis workbook, not the package tutorial. It
 applies the PCA-first sequence-map workflow independently to every FASTA
 alignment discovered in data/fasta. The current analysis expects four
 alignments, but discovery is dynamic and does not assume an exact count.
 
-Each alignment has its own ordination basis. Province-level values are derived reporting summaries of continuous SPDE surfaces, not direct nucleotide diversity and not separate province-level models.
+Each alignment has its own ordination basis. Province-level values are derived reporting summaries of continuous SPDE surfaces.
 
 ## Settings
 
@@ -468,13 +468,10 @@ invisible(lapply(
 
 ## Interpretation notes
 
-PC axes are not automatically comparable biologically across alignments unless
-the alignments and PCA basis are shared. PCA signs and directions are arbitrary
-within each alignment. Province summaries are derived reporting summaries, and
-surface heterogeneity is not nucleotide diversity. Interpret observed
+PCA signs and directions are arbitrary within each alignment.   
+Province summaries are derived reporting summaries. Interpret observed
 location-level reduced-space dispersion separately from modeled province
-metrics and posterior uncertainty. Cross-alignment comparisons should remain
-cautious until a shared feature basis or common PCA projection is implemented.
+metrics and posterior uncertainty. 
 
 ## Output inventory
 

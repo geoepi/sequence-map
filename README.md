@@ -1,7 +1,6 @@
 # sequencemap <img src="images/seqmap_sticker.png" align="right" height="300" />
 
-`sequencemap` is the R package used by the `sequence-map` repository.
-It converts aligned viral sequences and sampling coordinates into PCA-first,
+`sequencemap` converts aligned viral sequences and sampling geographic coordinates into PCA-first,
 location-level summaries and optional spatial predictions of ordination-axis
 scores across geographic space.
 
@@ -53,8 +52,7 @@ testthat::test_dir("tests/testthat")
 
 ## INLA installation
 
-`INLA` is listed under `Suggests` because installation is nonstandard and is
-only required for mesh construction, SPDE axis-model fitting, and surface
+`INLA` is required for mesh construction, SPDE axis-model fitting, and surface
 prediction. Non-spatial preprocessing, PCA, DAPC, and location summaries can run
 without INLA.
 
@@ -157,14 +155,6 @@ The tutorial uses bundled Vietnam example data and explains each major step. It
 can render without INLA; mesh, model, and prediction sections are skipped when
 INLA is unavailable.
 
-The formal Vietnam analysis workbook is separate:
-
-```r
-quarto::quarto_render("analysis/vietnam_sequence_map_analysis.qmd")
-```
-
-That workbook is designed to run locally because fitting INLA models across all
-FASTA alignments may take time.
 
 ## Output interpretation
 
@@ -184,11 +174,6 @@ continuous prediction surface. `calculate_polygon_axis_metrics()` derives:
 These metrics should be interpreted alongside observed sequence support and
 model uncertainty.
 
-## Large output files
-
-Generated results belong under `outputs/` and are ignored by Git. Avoid adding
-large prediction grids, GeoPackages, model objects, rendered workbooks, or other
-derived artifacts to the repository.
 
 ## Current limitations
 
