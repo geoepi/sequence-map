@@ -53,6 +53,10 @@ secrets.yaml
 
 /outputs
 
+/analysis/*_files/
+/analysis/*.html
+/analysis/*.pdf
+
 # renv
 renv/library/
 renv/python/

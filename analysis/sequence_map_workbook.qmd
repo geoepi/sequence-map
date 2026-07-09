@@ -1,0 +1,448 @@
+---
+title: "sequence-map tutorial workbook"
+subtitle: "From viral sequence alignment to spatial genetic-variation surfaces"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+    code-fold: true
+    code-tools: true
+execute:
+  warning: true
+  message: true
+---
+
+## Interpretation first
+
+This workbook maps **ordination-axis scores**, beginning with PCA. A PCA axis
+surface is a spatial prediction of genetic-position scores, not a direct
+estimate of nucleotide diversity. Location-level reduced-space dispersion
+requires at least two sequences at a sampled location. DAPC is optional because
+it depends on grouping assumptions; inferred groups should be treated as
+exploratory. Predictions away from sampled locations are model-based
+interpolations, not observed genetic data.
+
+## Setup
+
+```{r}
+#| label: setup
+#| include: false
+
+library(sequencemap)
+library(dplyr)
+library(ggplot2)
+library(sf)
+
+repo_root <- normalizePath(
+  if (file.exists("DESCRIPTION")) getwd() else file.path(getwd(), ".."),
+  winslash = "/",
+  mustWork = TRUE
+)
+fasta_path <- file.path(repo_root, "data", "fasta", "vp1_A_trimmed.fasta")
+metadata_path <- file.path(repo_root, "data", "metadata", "prep-for-seqs.Rda")
+boundary_path <- file.path(repo_root, "data", "spatial", "vn-spat.Rda")
+output_dir <- file.path(repo_root, "outputs", "workbook-sequence-map")
+
+sequence_id_col <- "sequence_id"
+lon_col <- "longitude"
+lat_col <- "latitude"
+location_col <- "location"
+crs_input <- 4326
+crs_projected <- "+proj=aea +lat_1=20 +lat_2=40 +lat_0=30 +lon_0=105 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
+grid_resolution <- 25000
+n_pca <- 20
+run_dapc <- FALSE
+write_outputs <- FALSE
+inla_available <- requireNamespace("INLA", quietly = TRUE)
+
+materialize_repository_examples <- function(metadata_rda, boundary_rda) {
+  metadata_env <- new.env(parent = emptyenv())
+  boundary_env <- new.env(parent = emptyenv())
+  load(metadata_rda, envir = metadata_env)
+  load(boundary_rda, envir = boundary_env)
+
+  metadata <- get("seq_meta_reg", envir = metadata_env)
+  provinces <- get("vn_provinces", envir = boundary_env)
+  province_points <- sf::st_transform(
+    sf::st_point_on_surface(sf::st_geometry(sf::st_transform(provinces, 3857))),
+    4326
+  )
+  coordinates <- sf::st_coordinates(province_points)
+  location_coordinates <- data.frame(
+    location = provinces$prov_eng,
+    longitude = coordinates[, "X"],
+    latitude = coordinates[, "Y"],
+    stringsAsFactors = FALSE
+  )
+
+  match_index <- match(metadata$location, location_coordinates$location)
+  metadata$longitude <- location_coordinates$longitude[match_index]
+  metadata$latitude <- location_coordinates$latitude[match_index]
+  names(metadata)[names(metadata) == "accession"] <- "sequence_id"
+
+  metadata_file <- tempfile(fileext = ".csv")
+  boundary_file <- tempfile(fileext = ".gpkg")
+  utils::write.csv(metadata, metadata_file, row.names = FALSE)
+  sf::st_write(provinces, boundary_file, quiet = TRUE, delete_dsn = TRUE)
+  list(metadata_file = metadata_file, boundary_file = boundary_file)
+}
+
+example_files <- materialize_repository_examples(metadata_path, boundary_path)
+```
+
+The bundled repository data use province-level representative coordinates for
+this instructional example. They are adequate for demonstrating the workflow,
+but are not a substitute for original sampling coordinates.
+
+## Read and validate inputs
+
+```{r}
+alignment <- read_alignment(fasta_path)
+metadata <- read_metadata(example_files$metadata_file)
+boundary <- read_boundary(example_files$boundary_file)
+
+character_alignment <- ape::as.character.DNAbin(alignment)
+if (is.list(character_alignment)) {
+  character_alignment <- do.call(rbind, character_alignment)
+}
+
+alignment_dimensions <- dim(character_alignment)
+alignment_ids <- names(alignment)
+represented_ids <- sum(alignment_ids %in% metadata[[sequence_id_col]])
+
+validate_alignment_metadata_match(alignment, metadata, id_col = sequence_id_col)
+validate_sequence_metadata(
+  metadata = metadata,
+  alignment = alignment,
+  id_col = sequence_id_col,
+  longitude_col = lon_col,
+  latitude_col = lat_col
+)
+
+data.frame(
+  alignment_sequences = alignment_dimensions[1],
+  alignment_sites = alignment_dimensions[2],
+  metadata_rows = nrow(metadata),
+  metadata_columns = ncol(metadata),
+  alignment_ids_represented = represented_ids
+)
+```
+
+```{r}
+cat("Boundary CRS:", sf::st_crs(boundary)$input, "\n")
+print(sf::st_bbox(boundary))
+```
+
+## Alignment encoding diagnostics
+
+```{r}
+variant_result <- alignment_to_variant_matrix(alignment, drop_invariant = TRUE)
+variant_matrix <- variant_result$variant_matrix
+site_summary <- variant_result$site_summary
+sequence_summary <- variant_result$sequence_summary
+
+data.frame(
+  n_sequences = nrow(variant_matrix),
+  n_original_sites = nrow(site_summary),
+  n_retained_sites = sum(site_summary$retained),
+  n_encoded_columns = ncol(variant_matrix)
+)
+```
+
+```{r}
+site_class_counts <- site_summary %>%
+  count(site_class, name = "n_sites") %>%
+  arrange(desc(n_sites))
+site_class_counts
+```
+
+```{r}
+ggplot(site_class_counts, aes(x = site_class, y = n_sites)) +
+  geom_col(fill = "#2C7FB8") +
+  labs(x = NULL, y = "Number of alignment sites", title = "Alignment site classes") +
+  theme_minimal()
+```
+
+```{r}
+qc_columns <- intersect(c("n_gap", "n_ambiguous", "n_missing"), names(sequence_summary))
+if (length(qc_columns) > 0L) {
+  sequence_summary %>%
+    select(sequence_id, all_of(qc_columns)) %>%
+    tidyr::pivot_longer(-sequence_id, names_to = "state", values_to = "count") %>%
+    ggplot(aes(x = count)) +
+    geom_histogram(bins = 20, fill = "#7FCDBB", color = "white") +
+    facet_wrap(~state, scales = "free_y") +
+    labs(x = "Count per sequence", y = "Number of sequences", title = "Sequence QC states") +
+    theme_minimal()
+}
+```
+
+## Principal component analysis
+
+```{r}
+pca_result <- run_sequence_pca(variant_matrix, rank. = n_pca)
+pca_scores <- pca_result$scores
+pca_result$variance_summary %>% slice_head(n = 10)
+```
+
+```{r}
+ggplot(pca_result$variance_summary, aes(x = component, y = proportion_variance, group = 1)) +
+  geom_col(fill = "#41AB5D") +
+  geom_line(color = "#238B45") +
+  labs(x = "Principal component", y = "Proportion variance", title = "PCA scree plot") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(pca_result$variance_summary, aes(x = component, y = cumulative_variance, group = 1)) +
+  geom_line(color = "#756BB1") +
+  geom_point(color = "#756BB1") +
+  labs(x = "Principal component", y = "Cumulative variance", title = "Cumulative PCA variance") +
+  theme_minimal()
+```
+
+```{r}
+pca_plot_data <- pca_scores %>%
+  left_join(metadata %>% select(all_of(c(sequence_id_col, location_col))), by = c("sequence_id" = sequence_id_col))
+
+ggplot(pca_plot_data, aes(x = PC1, y = PC2, color = .data[[location_col]])) +
+  geom_point(size = 2, alpha = 0.8) +
+  labs(color = "Location", title = "PC1 and PC2 sequence scores") +
+  theme_minimal()
+```
+
+## Optional discriminant analysis of principal components
+
+DAPC is disabled by default. Use it only with biologically meaningful group
+labels, or regard inferred clusters as exploratory.
+
+```{r}
+#| eval: false
+
+run_dapc <- FALSE
+group_col <- "region"
+if (run_dapc) {
+  dapc_result <- run_sequence_dapc(
+    x = variant_matrix,
+    metadata = metadata,
+    id_col = sequence_id_col,
+    grouping_col = group_col,
+    infer_groups = FALSE,
+    n_pca = n_pca,
+    n_da = 3
+  )
+}
+```
+
+## Location summaries
+
+```{r}
+sequence_scores <- pca_scores %>% select(sequence_id, matches("^PC_?[0-9]+$"))
+location_scores <- summarize_location_scores(
+  scores = sequence_scores,
+  metadata = metadata,
+  sequence_id_col = sequence_id_col,
+  location_col = location_col,
+  lon_col = lon_col,
+  lat_col = lat_col
+)
+location_diversity <- summarize_location_diversity(
+  scores = sequence_scores,
+  metadata = metadata,
+  sequence_id_col = sequence_id_col,
+  location_col = location_col,
+  lon_col = lon_col,
+  lat_col = lat_col
+)
+
+data.frame(n_sampled_locations = nrow(location_scores))
+```
+
+```{r}
+ggplot(location_scores, aes(x = n_sequences)) +
+  geom_histogram(binwidth = 1, boundary = 0, fill = "#FEC44F", color = "white") +
+  labs(x = "Sequences per location", y = "Number of locations") +
+  theme_minimal()
+```
+
+```{r}
+location_diversity %>%
+  filter(n_sequences >= 2) %>%
+  select(location, n_sequences, n_axes, div_trace, mean_pairwise_ordination_distance)
+```
+
+```{r}
+ggplot(filter(location_diversity, n_sequences >= 2), aes(x = reorder(location, div_trace), y = div_trace)) +
+  geom_col(fill = "#E34A33") +
+  coord_flip() +
+  labs(x = NULL, y = "Ordination-space dispersion (trace)") +
+  theme_minimal()
+```
+
+## Spatial preparation
+
+All mesh and prediction operations use a projected CRS in metres. The Vietnam
+Albers CRS selected above is a local analysis projection; choose a projection
+appropriate to the geographic extent of a new study.
+
+```{r}
+points_sf <- prepare_spatial_points(
+  data = location_scores,
+  lon_col = lon_col,
+  lat_col = lat_col,
+  crs_input = crs_input,
+  crs_projected = crs_projected,
+  id_col = location_col,
+  keep_cols = setdiff(names(location_scores), c(lon_col, lat_col))
+)
+prediction_grid <- make_prediction_grid(
+  boundary = boundary,
+  crs_projected = crs_projected,
+  grid_resolution = grid_resolution,
+  return = "sf"
+)
+boundary_projected <- sf::st_transform(boundary, sf::st_crs(points_sf))
+```
+
+```{r}
+ggplot() +
+  geom_sf(data = boundary_projected, fill = "grey95") +
+  geom_sf(data = points_sf, color = "#D7301F", size = 2) +
+  labs(title = "Sampled locations") +
+  theme_minimal()
+```
+
+```{r}
+ggplot() +
+  geom_sf(data = boundary_projected, fill = "grey95") +
+  geom_sf(data = prediction_grid, color = "#2B8CBE", size = 0.3, alpha = 0.5) +
+  geom_sf(data = points_sf, color = "#D7301F", size = 1.5) +
+  labs(title = "Prediction grid and sampled locations") +
+  theme_minimal()
+```
+
+## INLA availability
+
+```{r}
+if (!requireNamespace("INLA", quietly = TRUE)) {
+  knitr::asis_output("INLA is not installed; mesh and model sections are skipped.")
+} else {
+  knitr::asis_output("INLA is available; mesh, model, and prediction sections are evaluated.")
+}
+```
+
+## Mesh diagnostics
+
+```{r}
+#| eval: !expr inla_available
+
+mesh_result <- make_inla_mesh(
+  points_sf = points_sf,
+  boundary = boundary,
+  prediction_grid = prediction_grid,
+  max_edge = c(grid_resolution * 2, grid_resolution * 5),
+  cutoff = grid_resolution / 5,
+  offset = c(grid_resolution, grid_resolution * 2),
+  crs_projected = crs_projected
+)
+mesh_result$mesh_summary
+```
+
+With only 17 sampled locations in this example, mesh density should be read as
+a numerical approximation choice, not as evidence for fine-scale genetic
+structure.
+
+```{r}
+#| eval: !expr inla_available
+
+plot(mesh_result$mesh, asp = 1, main = "Full INLA mesh")
+plot(sf::st_geometry(boundary_projected), add = TRUE, border = "grey40")
+points(sf::st_coordinates(points_sf), col = "#D7301F", pch = 16)
+```
+
+```{r}
+#| eval: !expr inla_available
+
+point_coordinates <- sf::st_coordinates(points_sf)
+plot(mesh_result$mesh, asp = 1, main = "Mesh near sampled locations", xlim = range(point_coordinates[, 1]) + c(-50000, 50000), ylim = range(point_coordinates[, 2]) + c(-50000, 50000))
+points(point_coordinates, col = "#D7301F", pch = 16)
+```
+
+## Axis models
+
+```{r}
+#| eval: !expr inla_available
+
+response_cols <- intersect(c("PC1_mean", "PC2_mean", "PC3_mean"), names(points_sf))
+axis_models <- fit_axis_models(
+  points_sf = points_sf,
+  response_cols = response_cols,
+  mesh = mesh_result,
+  continue_on_error = TRUE
+)
+axis_models$model_summaries
+axis_models$successful_response_cols
+axis_models$failed_response_cols
+```
+
+WAIC and DIC are model diagnostics for a given axis. They do not validate a
+biological interpretation of that axis or establish population-genetic change.
+
+## Spatial predictions
+
+```{r}
+#| eval: !expr inla_available
+
+axis_surfaces <- predict_axis_surfaces(
+  axis_models = axis_models,
+  prediction_grid = prediction_grid,
+  continue_on_error = TRUE
+)
+names(axis_surfaces$combined_surface)
+```
+
+```{r}
+#| eval: !expr inla_available
+
+plot_prediction <- function(surface, column, title) {
+  ggplot() +
+    geom_sf(data = surface, aes(color = .data[[column]]), size = 0.6) +
+    geom_sf(data = boundary_projected, fill = NA, color = "grey30") +
+    geom_sf(data = points_sf, color = "black", size = 1) +
+    labs(color = column, title = title) +
+    theme_minimal()
+}
+
+for (column in intersect(c("PC1_mean_pred", "PC2_mean_pred", "PC3_mean_pred"), names(axis_surfaces$combined_surface))) {
+  print(plot_prediction(axis_surfaces$combined_surface, column, paste("Predicted", column)))
+}
+```
+
+```{r}
+#| eval: !expr inla_available
+
+if ("PC1_mean_sd" %in% names(axis_surfaces$combined_surface)) {
+  plot_prediction(axis_surfaces$combined_surface, "PC1_mean_sd", "PC1 prediction uncertainty")
+}
+```
+
+## Optional small outputs
+
+```{r}
+if (write_outputs) {
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  utils::write.csv(site_summary, file.path(output_dir, "alignment_site_summary.csv"), row.names = FALSE)
+  utils::write.csv(sequence_summary, file.path(output_dir, "alignment_sequence_summary.csv"), row.names = FALSE)
+  utils::write.csv(location_scores, file.path(output_dir, "location_scores.csv"), row.names = FALSE)
+  utils::write.csv(location_diversity, file.path(output_dir, "location_diversity.csv"), row.names = FALSE)
+}
+```
+
+## Reproducibility
+
+```{r}
+packageVersion("sequencemap")
+sessionInfo()
+```
