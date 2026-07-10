@@ -150,30 +150,59 @@ run_sequence_map_workflow <- function(
     grid_resolution = grid_resolution,
     return = "sf"
   )
-  mesh_result <- make_inla_mesh(
-    points_sf = points_sf,
-    boundary = boundary,
-    prediction_grid = prediction_grid,
-    max_edge = c(grid_resolution * 2, grid_resolution * 5),
-    cutoff = grid_resolution / 5,
-    offset = c(grid_resolution, grid_resolution * 2),
-    crs_projected = crs_projected
+  check_spatial_workflow_dependencies()
+  check_spatial_location_support(points_sf)
+  mesh_result <- tryCatch(
+    make_inla_mesh(
+      points_sf = points_sf,
+      boundary = boundary,
+      prediction_grid = prediction_grid,
+      max_edge = c(grid_resolution * 2, grid_resolution * 5),
+      cutoff = grid_resolution / 5,
+      offset = c(grid_resolution, grid_resolution * 2),
+      crs_projected = crs_projected
+    ),
+    error = function(error) {
+      stop(
+        sprintf(
+          "INLA mesh construction failed. Check the projected CRS, boundary, and sampled locations. Details: %s",
+          conditionMessage(error)
+        ),
+        call. = FALSE
+      )
+    }
   )
 
   workflow_message(verbose, "Fitting batch axis models and predicting surfaces.")
-  axis_models <- fit_axis_models(
-    points_sf = points_sf,
-    response_cols = modeled_response_cols,
-    mesh = mesh_result,
-    iid_effects = iid_effects,
-    continue_on_error = continue_on_error,
-    compute_criteria = TRUE,
-    verbose = FALSE
+  axis_models <- tryCatch(
+    fit_axis_models(
+      points_sf = points_sf,
+      response_cols = modeled_response_cols,
+      mesh = mesh_result,
+      iid_effects = iid_effects,
+      continue_on_error = continue_on_error,
+      compute_criteria = TRUE,
+      verbose = FALSE
+    ),
+    error = function(error) {
+      stop(
+        sprintf("INLA axis model fitting failed. Details: %s", conditionMessage(error)),
+        call. = FALSE
+      )
+    }
   )
-  axis_surfaces <- predict_axis_surfaces(
-    axis_models = axis_models,
-    prediction_grid = prediction_grid,
-    continue_on_error = continue_on_error
+  axis_surfaces <- tryCatch(
+    predict_axis_surfaces(
+      axis_models = axis_models,
+      prediction_grid = prediction_grid,
+      continue_on_error = continue_on_error
+    ),
+    error = function(error) {
+      stop(
+        sprintf("INLA axis prediction failed. Details: %s", conditionMessage(error)),
+        call. = FALSE
+      )
+    }
   )
 
   alignment_qc <- list(

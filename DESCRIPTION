@@ -1,17 +1,21 @@
 Package: sequencemap
 Title: Spatial Mapping of Viral Sequence Variation
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "J. M.",
+           family = "Humphreys",
            role = c("aut", "cre"),
-           email = "first.last@example.com")
+           email = "spatial.jmh@gmail.com")
 Description: Tools for converting aligned viral sequence data and sampling
     coordinates into ordination-based spatial summaries and predicted surfaces.
     The PCA-first workflow supports alignment quality control, location-level
-    score and dispersion summaries, and optional Gaussian SPDE interpolation
-    through 'INLA'.
+    score and reduced-space dispersion summaries, and optional Gaussian SPDE
+    interpolation through 'INLA'. Raster and polygon outputs are derived
+    reporting summaries of modeled ordination-axis surfaces, not direct
+    nucleotide-diversity estimates.
 License: MIT + file LICENSE
+URL: https://github.com/geoepi/sequence-map
+BugReports: https://github.com/geoepi/sequence-map/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2

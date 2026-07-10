@@ -39,7 +39,7 @@ library(sf)
 
 repo_root <- here::here()
 
-run_models <- TRUE
+run_models <- FALSE
 overwrite_existing <- TRUE
 rebuild_reporting_outputs <- TRUE
 n_pca <- 20

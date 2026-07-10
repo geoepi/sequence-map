@@ -1,4 +1,8 @@
-# sequencemap <img src="images/seqmap_sticker.png" align="right" height="300" />
+<p align="center">
+  <img src="images/sequence-map-sticker.png" width="220" alt="sequence-map hex sticker">
+</p>
+
+# sequencemap
 
 `sequencemap` converts aligned viral sequences and sampling geographic coordinates into PCA, DAPC, and other   
 location-level summaries and optional spatial predictions of ordination-axis
@@ -32,7 +36,7 @@ Install the development version from GitHub:
 
 ```r
 install.packages("remotes")
-remotes::install_github("JMHumphreys/sequence-map")
+remotes::install_github("geoepi/sequence-map")
 ```
 
 Or, from a local clone of the repository:
@@ -98,6 +102,31 @@ A typical workflow requires:
 - A boundary readable by `sf` for prediction-grid construction.
 - A projected CRS in metric units for spatial modeling.
 
+### Input contract
+
+**FASTA alignment**
+
+- Must be aligned: all sequences have the same length.
+- Must have unique sequence IDs.
+- Uses the DNA alphabet; canonical A/C/G/T states are encoded for ordination.
+- Gaps and ambiguous states are allowed, retained in QC summaries, and are not
+  treated as additional canonical nucleotide states by default.
+
+**Metadata**
+
+- Must contain one row per sequence or otherwise include all FASTA
+  `sequence_id` values.
+- Requires `sequence_id`, `longitude`, and `latitude`.
+- Coordinates must be numeric and present for every retained sequence.
+- Optional `location` groups sequences for sampled-location summaries; optional
+  `group` can supply biologically meaningful DAPC labels.
+
+**Boundary**
+
+- Must be a valid polygon layer readable by `sf`.
+- Must have a usable CRS and cover the sampling locations.
+- Is transformed to a projected, metric CRS before mesh and prediction work.
+
 ## Core workflow
 
 ```text
@@ -119,6 +148,22 @@ read_alignment()
 
 DAPC is opt-in because it requires a biologically justified grouping decision or
 explicitly exploratory inferred groups.
+
+## Status and failure reporting
+
+Each completed workflow writes readable CSV audit files alongside its RDS and
+spatial outputs:
+
+- `workflow_status.csv` records input counts, DAPC status, modeled/predicted
+  axis counts, and raster/polygon stage status.
+- `dapc_status.csv`, `axis_model_status.csv`, and
+  `axis_prediction_status.csv` show what succeeded, failed, or was skipped.
+- `workflow_error_log.csv` records messages and error classes; it is present
+  with headers even when no errors occurred.
+
+Before spatial modeling, the workflow checks for `INLA`, `sf`, and `terra`.
+Errors distinguish dependency availability, projected-CRS issues, insufficient
+sampled locations, mesh construction, model fitting, and prediction stages.
 
 ## Minimal example
 
