@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/sequence-map-sticker.png" width="220" alt="sequence-map hex sticker">
+  <img src="images/sequence-map-sticker.png" width="350" alt="sequence-map hex sticker">
 </p>
 
 # sequencemap
