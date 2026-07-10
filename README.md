@@ -108,7 +108,7 @@ A typical workflow requires:
 
 - Must be aligned: all sequences have the same length.
 - Must have unique sequence IDs.
-- Uses the DNA alphabet; canonical A/C/G/T states are encoded for ordination.
+- A/C/G/T states are encoded for ordination.
 - Gaps and ambiguous states are allowed, retained in QC summaries, and are not
   treated as additional canonical nucleotide states by default.
 
