@@ -1,6 +1,6 @@
 # sequencemap <img src="images/seqmap_sticker.png" align="right" height="300" />
 
-`sequencemap` converts aligned viral sequences and sampling geographic coordinates into PCA-first,
+`sequencemap` converts aligned viral sequences and sampling geographic coordinates into PCA, DAPC, and other   
 location-level summaries and optional spatial predictions of ordination-axis
 scores across geographic space.
 

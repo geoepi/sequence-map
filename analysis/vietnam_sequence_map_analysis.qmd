@@ -1,6 +1,6 @@
 ---
 title: "Vietnam sequence-map analysis"
-subtitle: "Spatial genetic-variation surfaces across four sequence alignments"
+subtitle: "Spatial genetic-variation surfaces across four FMDv alignments"
 format:
   html:
     toc: true
@@ -23,7 +23,7 @@ applies the PCA-first sequence-map workflow independently to every FASTA
 alignment discovered in data/fasta. The current analysis expects four
 alignments, but discovery is dynamic and does not assume an exact count.
 
-Each alignment has its own ordination basis. Province-level values are derived reporting summaries of continuous SPDE surfaces.
+Each alignment has its own ordination basis. Province-level values are derived reporting summaries of continuous SPDE surfaces, not direct nucleotide diversity and not separate province-level models.
 
 ## Settings
 
@@ -39,7 +39,7 @@ library(sf)
 
 repo_root <- here::here()
 
-run_models <- FALSE
+run_models <- TRUE
 overwrite_existing <- TRUE
 rebuild_reporting_outputs <- TRUE
 n_pca <- 20
@@ -321,6 +321,18 @@ cross_alignment_summary
 ## Workflow audit status
 
 ```{r}
+if (!exists(
+  "summarize_workflow_status",
+  where = asNamespace("sequencemap"),
+  inherits = FALSE
+)) {
+  stop(
+    "The installed sequencemap package does not include workflow audit functions. ",
+    "Reinstall the current repository, restart R, and rerun this workbook.",
+    call. = FALSE
+  )
+}
+
 load_workflow_audit <- function(entry) {
   if (!file.exists(entry$workflow_result_path)) {
     return(NULL)
