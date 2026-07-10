@@ -50,6 +50,7 @@ secrets.yaml
 
 # local data
 /local
+/legacy
 
 /outputs
 /outputs/
