@@ -1,7 +1,7 @@
 schema_version: 1
 
 project_id: fmd-patho
-subproject_id: fmd-sequence-map
+subproject_id: sequence-map
 
 title: Mapping Virus Diversity and Variation
 summary: >
