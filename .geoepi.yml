@@ -5,7 +5,7 @@ subproject_id: fmd-sequence-map
 
 title: Mapping Virus Diversity and Variation
 summary: >
-  sequencemap converts aligned viral sequences and sampling geographic coordinates into PCA, DAPC, and other
+  Sequencemap converts aligned viral sequences and sampling geographic coordinates into PCA, DAPC, and other
 location-level summaries and optional spatial predictions of ordination-axis scores across geographic space.
 
 lead:
