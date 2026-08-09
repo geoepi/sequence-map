@@ -5,8 +5,8 @@ subproject_id: sequence-map
 
 title: Mapping Virus Diversity and Variation
 summary: >
-  Sequencemap converts aligned viral sequences and sampling geographic coordinates into PCA, DAPC, and other
-location-level summaries and optional spatial predictions of ordination-axis scores across geographic space.
+  Sequence-map converts aligned viral sequences and sampling geographic coordinates into PCA, DAPC, and other
+  location-level summaries and optional spatial predictions of ordination-axis scores across geographic space.
 
 lead:
   name: John Humphreys
